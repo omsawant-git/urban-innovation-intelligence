@@ -29,10 +29,8 @@ def test_connection():
         engine = get_engine()
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
-        logger.info("✅ Database connection successful")
         print("✅ Database connection successful")
         return True
     except Exception as e:
-        logger.error(f"❌ Connection failed: {e}")
         print(f"❌ Connection failed: {e}")
         return False
