@@ -1,8 +1,9 @@
+import os
 import pandas as pd
 import numpy as np
 import pickle
 import logging
-from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from xgboost import XGBClassifier
 from models.evaluator import evaluate_classifier
@@ -22,17 +23,15 @@ def prepare_features(df: pd.DataFrame):
     X = df[FEATURE_COLS].copy()
     X["has_government_partner"] = X["has_government_partner"].astype(int)
     X["revenue_stage"] = df["revenue_stage"].map(REVENUE_MAP).fillna(0)
-
-    scaler = StandardScaler()
+    scaler   = StandardScaler()
     X_scaled = scaler.fit_transform(X)
-    y = df["impact_tier"].map(TIER_MAP).values
+    y        = df["impact_tier"].map(TIER_MAP).values
     return X_scaled, y, scaler
 
 def train_classifier(df: pd.DataFrame) -> dict:
     """Train XGBoost classifier on startup impact tier."""
     logger.info("Training XGBoost classifier...")
 
-    # Drop rows with missing target
     df = df.dropna(subset=["impact_tier"]).copy()
     df = df[df["impact_tier"].isin(["Low", "Medium", "High"])].copy()
 
@@ -42,28 +41,18 @@ def train_classifier(df: pd.DataFrame) -> dict:
     )
 
     model = XGBClassifier(
-        n_estimators=200,
-        max_depth=4,
-        learning_rate=0.05,
-        subsample=0.8,
-        colsample_bytree=0.8,
-        use_label_encoder=False,
-        eval_metric="mlogloss",
-        random_state=RANDOM_STATE,
-        verbosity=0,
+        n_estimators=200, max_depth=4, learning_rate=0.05,
+        subsample=0.8, colsample_bytree=0.8,
+        use_label_encoder=False, eval_metric="mlogloss",
+        random_state=RANDOM_STATE, verbosity=0,
     )
-    model.fit(
-        X_train, y_train,
-        eval_set=[(X_test, y_test)],
-        verbose=False
-    )
+    model.fit(X_train, y_train, eval_set=[(X_test, y_test)], verbose=False)
 
     y_pred  = model.predict(X_test)
     y_proba = model.predict_proba(X_test)
     labels  = ["Low", "Medium", "High"]
     metrics = evaluate_classifier(y_test, y_pred, y_proba, labels)
 
-    # SHAP feature importance
     try:
         import shap
         explainer   = shap.TreeExplainer(model)
@@ -82,6 +71,7 @@ def train_classifier(df: pd.DataFrame) -> dict:
         logger.warning(f"SHAP failed: {e}")
 
     # Save artifacts
+    os.makedirs("artifacts", exist_ok=True)
     with open("artifacts/classifier.pkl", "wb") as f:
         pickle.dump(model, f)
     with open("artifacts/scaler.pkl", "wb") as f:
@@ -103,12 +93,12 @@ def predict_impact_tier(startup_features: dict) -> dict:
     X["revenue_stage"] = df["revenue_stage"].map(REVENUE_MAP).fillna(0)
     X_scaled = scaler.transform(X)
 
-    pred    = model.predict(X_scaled)[0]
-    proba   = model.predict_proba(X_scaled)[0]
-    tier_inv= {0: "Low", 1: "Medium", 2: "High"}
+    pred     = model.predict(X_scaled)[0]
+    proba    = model.predict_proba(X_scaled)[0]
+    tier_inv = {0: "Low", 1: "Medium", 2: "High"}
 
     return {
-        "impact_tier":  tier_inv[pred],
-        "confidence":   round(float(proba.max()), 3),
-        "probabilities":{"Low": round(proba[0],3), "Medium": round(proba[1],3), "High": round(proba[2],3)}
+        "impact_tier":   tier_inv[pred],
+        "confidence":    round(float(proba.max()), 3),
+        "probabilities": {"Low": round(proba[0],3), "Medium": round(proba[1],3), "High": round(proba[2],3)}
     }

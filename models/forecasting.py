@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import numpy as np
 import pickle
@@ -14,7 +15,6 @@ FORECAST_TARGETS = ["co2_emissions", "renewable_energy", "pm25_exposure", "gdp_p
 LAGS = [1, 2, 3, 6]
 
 def create_lag_features(df: pd.DataFrame, target: str) -> pd.DataFrame:
-    """Create lag, rolling, and calendar features."""
     df = df.copy().sort_values("year")
     for lag in LAGS:
         df[f"lag_{lag}"] = df[target].shift(lag)
@@ -30,20 +30,20 @@ def train_forecasting(df: pd.DataFrame) -> dict:
     metrics = {}
 
     for target in FORECAST_TARGETS:
-        city_models = {}
-        city_metrics= {}
+        city_models  = {}
+        city_metrics = {}
 
         for city in df["city"].unique():
             city_df = df[df["city"] == city][["year", target]].copy()
             if len(city_df) < 6:
                 continue
 
-            featured = create_lag_features(city_df, target)
+            featured  = create_lag_features(city_df, target)
             feat_cols = [c for c in featured.columns if c not in ["year", target]]
             X = featured[feat_cols].values
             y = featured[target].values
 
-            tscv = TimeSeriesSplit(n_splits=3)
+            tscv        = TimeSeriesSplit(n_splits=3)
             mape_scores = []
 
             for train_idx, test_idx in tscv.split(X):
@@ -57,7 +57,6 @@ def train_forecasting(df: pd.DataFrame) -> dict:
                 preds = m.predict(X[test_idx])
                 mape_scores.append(mean_absolute_percentage_error(y[test_idx], preds))
 
-            # Final model
             final = lgb.LGBMRegressor(
                 n_estimators=200, learning_rate=0.05,
                 num_leaves=15, random_state=RANDOM_STATE, verbose=-1
@@ -69,6 +68,7 @@ def train_forecasting(df: pd.DataFrame) -> dict:
         models[target]  = city_models
         metrics[target] = city_metrics
 
+    os.makedirs("artifacts", exist_ok=True)
     with open("artifacts/lgbm_forecaster.pkl", "wb") as f:
         pickle.dump(models, f)
 

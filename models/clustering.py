@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import numpy as np
 import pickle
@@ -24,7 +25,6 @@ CLUSTER_LABELS = {
 }
 
 def prepare_city_features(df: pd.DataFrame):
-    """Aggregate indicators per city and scale."""
     city_avg = df.groupby("city")[CLUSTER_FEATURES].mean().reset_index()
     city_avg = city_avg.dropna()
     scaler   = StandardScaler()
@@ -37,7 +37,6 @@ def train_clustering(df: pd.DataFrame, n_clusters: int = 5) -> dict:
 
     city_avg, X_scaled, scaler = prepare_city_features(df)
 
-    # Elbow method
     inertias = []
     k_range  = range(2, 9)
     for k in k_range:
@@ -45,7 +44,6 @@ def train_clustering(df: pd.DataFrame, n_clusters: int = 5) -> dict:
         km.fit(X_scaled)
         inertias.append(km.inertia_)
 
-    # Final model
     model = KMeans(n_clusters=n_clusters, random_state=RANDOM_STATE, n_init=10)
     model.fit(X_scaled)
 
@@ -55,13 +53,12 @@ def train_clustering(df: pd.DataFrame, n_clusters: int = 5) -> dict:
     metrics = evaluate_clustering(X_scaled, model.labels_)
     metrics["elbow_data"] = {"k": list(k_range), "inertia": inertias}
 
-    # PCA for 2D visualization
-    pca = PCA(n_components=2)
+    pca  = PCA(n_components=2)
     X_2d = pca.fit_transform(X_scaled)
     city_avg["pca_x"] = X_2d[:, 0]
     city_avg["pca_y"] = X_2d[:, 1]
 
-    # Save artifacts
+    os.makedirs("artifacts", exist_ok=True)
     with open("artifacts/kmeans.pkl", "wb") as f:
         pickle.dump({"model": model, "scaler": scaler, "pca": pca}, f)
 

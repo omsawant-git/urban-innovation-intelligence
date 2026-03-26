@@ -9,8 +9,11 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 # ── Switch to SQLite for cloud deployment ──────────
 os.environ.setdefault("USE_SQLITE", "true")
 
+# ── Create artifacts directory ─────────────────────
+os.makedirs("artifacts", exist_ok=True)
+
 # ── Auto-initialize DB if empty ────────────────────
-from database.connection import get_engine, test_connection
+from database.connection import get_engine
 from database.models import Base
 from sqlalchemy.orm import sessionmaker
 
@@ -30,7 +33,6 @@ if session.query(City).count() == 0:
     from etl.startups  import generate_startup_dataset
     import pandas as pd
 
-    # Load cities
     for c in CITIES:
         session.add(City(
             name=c["name"], country=c["country"],
@@ -39,7 +41,6 @@ if session.query(City).count() == 0:
         ))
     session.commit()
 
-    # Load indicators
     cities_map = {c.name: c.id for c in session.query(City).all()}
     df_ind = generate_fallback_indicators()
     for _, row in df_ind.iterrows():
@@ -56,7 +57,6 @@ if session.query(City).count() == 0:
             ))
     session.commit()
 
-    # Load climate
     try:
         df_clim = fetch_all_climate()
         for _, row in df_clim.iterrows():
@@ -74,7 +74,6 @@ if session.query(City).count() == 0:
     except Exception:
         pass
 
-    # Load startups
     df_start = generate_startup_dataset(500)
     for _, row in df_start.iterrows():
         session.add(Startup(
@@ -96,22 +95,28 @@ session.close()
 
 # ── Train models if artifacts missing ──────────────
 import pickle
+
 artifacts = [
     "artifacts/classifier.pkl",
     "artifacts/kmeans.pkl",
     "artifacts/lgbm_forecaster.pkl",
     "artifacts/anomaly.pkl",
 ]
+
 if not all(os.path.exists(a) for a in artifacts):
-    from scripts.train_models import (
-        load_indicators, load_startups,
-        train_classifier, train_clustering,
-        train_forecasting, train_anomaly_detector
-    )
-    s2       = Session()
-    df_i     = load_indicators(s2)
-    df_s     = load_startups(s2)
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    from scripts.train_models import load_indicators, load_startups
+    from models.classifier import train_classifier
+    from models.clustering  import train_clustering
+    from models.forecasting import train_forecasting
+    from models.anomaly     import train_anomaly_detector
+
+    s2   = Session()
+    df_i = load_indicators(s2)
+    df_s = load_startups(s2)
     s2.close()
+
     train_classifier(df_s)
     train_clustering(df_i)
     train_forecasting(df_i)

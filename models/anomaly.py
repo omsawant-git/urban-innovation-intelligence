@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import numpy as np
 import pickle
@@ -40,6 +41,7 @@ def train_anomaly_detector(df: pd.DataFrame) -> dict:
         city_avg["is_anomaly"].values
     )
 
+    os.makedirs("artifacts", exist_ok=True)
     with open("artifacts/anomaly.pkl", "wb") as f:
         pickle.dump({"model": model, "scaler": scaler}, f)
 
