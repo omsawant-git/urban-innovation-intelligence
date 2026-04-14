@@ -26,7 +26,7 @@ Leading Cities evaluates hundreds of startup applications per accelerator cycle 
 | Indicator Forecaster | LightGBM | TimeSeriesSplit CV | MAPE + RMSE per city |
 | Anomaly Detector | Isolation Forest | Anomaly Rate | 13.3% (2/15 cities flagged) |
 
-**Anomalies detected:** Dubai (high CO2 + low renewables) and Mumbai (low CO2 + extreme PM2.5) — both Medium severity.
+**Anomalies detected:** 2
 
 ---
 
@@ -162,8 +162,6 @@ urban-innovation-intelligence/
 **Om Sawant** — M.S. Data Science, Worcester Polytechnic Institute  
 [omsawant.work@gmail.com](mailto:omsawant.work@gmail.com) · [github.com/omsawant-git](https://github.com/omsawant-git)
 
-Built for **Leading Cities' AcceliCITY Program** · March 2026
-
----
+Built in March 2026
 
 *© 2026 Om Sawant*
